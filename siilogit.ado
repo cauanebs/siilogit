@@ -1,7 +1,8 @@
 /************************************************************************
 Author: Aluisio J D Barros
 Email: abarros@equidade.org
-Date: 2010, 2012, April 14, Jan 15, Jun 17, Mar 18
+Mantained by: Cauane Blumenberg
+Email: cblumenberg@equidade.org
 
 This program calculates both the slope index of inequality (SII) and the
 relative index of inequality (RII) using a logistic regression model.
@@ -24,7 +25,9 @@ Mar 2018 - A line was added to drop from the dataset missing variables for eithe
 
 Jan 2019 - the observed probabilities for each group are now calculated using a logistic model as well, with the stratifier as a categorical variable in the model.
            This allows weights to be taken into account properly. Also, a change in the outcome from 1 to .99 and 0 to .01 was removed. The code was changed to 
-           include the clusters in the model using a local macro instead of if's. 
+           include the clusters in the model using a local macro instead of if's.
+
+April 2020 - nlcom estimation command was split into 3 parts to avoid exceeding the maximum number of iterations
 *************************************************************************/
 
 /************************************************************************
@@ -142,7 +145,8 @@ quietly {
     gen _lpm = logit(_pm)                                       // logit predicted probabilities
     
     *** Estimating the SII
-    noisily nlcom SII: exp(_b[_cons]+_b[_rkmidp]) / (1+exp(_b[_cons] +_b[_rkmidp])) - exp(_b[_cons])/(1+exp(_b[_cons])), post noheader
+    nlcom (SIIpart1: exp(_b[_cons]+_b[_rkmidp])) (SIIpart2: 1+exp(_b[_cons] +_b[_rkmidp])) (SIIpart3: exp(_b[_cons])/(1+exp(_b[_cons]))), post
+    noi nlcom SII: _b[SIIpart1] / _b[SIIpart2] - _b[SIIpart3], post noheader
     mat def sii=e(b)
     mat def siise=e(V)
     return scalar sii = sii[1,1]
@@ -150,7 +154,8 @@ quietly {
     
     *** Estimating the RII 
     capture glm `2' _rkmidp [pw=_freq], f(bin) l(logit) `vcecond' search iterate(100)
-    noisily nlcom RII: (exp(_b[_cons]+_b[_rkmidp]) / (1+exp(_b[_cons] +_b[_rkmidp]))) / (exp(_b[_cons])/(1+exp(_b[_cons]))), post noheader
+    nlcom (RIIpart1: exp(_b[_cons]+_b[_rkmidp])) (RIIpart2: 1+exp(_b[_cons] +_b[_rkmidp])) (RIIpart3: exp(_b[_cons])/(1+exp(_b[_cons]))), post
+    noi nlcom RII: (_b[RIIpart1] / _b[RIIpart2]) / _b[RIIpart3], post noheader
     mat def rii=e(b)
     mat def riise=e(V)
     return scalar rii = rii[1,1]
